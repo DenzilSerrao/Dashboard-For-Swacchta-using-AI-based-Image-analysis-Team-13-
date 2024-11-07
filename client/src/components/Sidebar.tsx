@@ -1,12 +1,14 @@
-import React from 'react';
-import { LayoutDashboard, User, Bell, Activity, Heart, Settings } from 'lucide-react';
-
+import React, { useState } from 'react';
+import { LayoutDashboard, User, Bell, Activity, Heart, Settings, LogIn } from 'lucide-react';
+import Login from './Login';
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false); // State for login modal visibility
+
   const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard },
     { name: 'User Profile', icon: User },
@@ -14,7 +16,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
     { name: 'User Diagnostic', icon: Activity },
     { name: 'Contribution', icon: Heart },
     { name: 'Settings', icon: Settings },
+    { name: 'Login', icon: LogIn },
   ];
+
+  const openLoginModal = () => setIsLoginModalOpen(true);
+  const closeLoginModal = () => setIsLoginModalOpen(false);
 
   return (
     <aside className="bg-green-600 text-white w-64 min-h-screen p-4">

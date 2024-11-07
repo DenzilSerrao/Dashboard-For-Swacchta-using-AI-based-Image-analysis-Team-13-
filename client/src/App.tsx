@@ -7,9 +7,12 @@ import UserDiagnostic from './components/UserDiagnostic';
 import Contribution from './components/Contribution';
 import Settings from './components/Settings';
 import Marquee from './components/Marquee';
+import Login from './components/Login';
+import Register from './components/Register';
 
 function App() {
   const [activeTab, setActiveTab] = useState('Dashboard');
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // Track login state
 
   const renderContent = () => {
     switch (activeTab) {
@@ -30,15 +33,29 @@ function App() {
     }
   };
 
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true); // Set user as logged in when login is successful
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false); // Log the user out
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       <Marquee />
-      <div className="flex flex-1">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-        <main className="flex-1 p-6">
-          {renderContent()}
-        </main>
-      </div>
+      {isLoggedIn ? (
+        <div className="flex flex-1">
+          {/* Sidebar and main content */}
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+          <main className="flex-1 p-6">{renderContent()}</main>
+        </div>
+      ) : (
+        // Center Login component when the user is not logged in
+        <div className="flex justify-center items-center min-h-screen bg-gray-100">
+          <Login onLoginSuccess={handleLoginSuccess} />
+        </div>
+      )}
     </div>
   );
 }
