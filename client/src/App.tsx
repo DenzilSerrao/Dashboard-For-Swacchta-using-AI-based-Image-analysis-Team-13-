@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
-import UserProfile from './components/UserProfile';
-import Alerts from './components/Alerts';
-import UserDiagnostic from './components/UserDiagnostic';
-import Contribution from './components/Contribution';
-import Settings from './components/Settings';
-import Marquee from './components/Marquee';
-import Login from './components/Login';
+import Sidebar from './components/common/Sidebar';
+import Dashboard from './components/dashboard/Dashboard';
+import UserProfile from './components/user/UserProfile';
+import Alerts from './components/dashboard/Alerts';
+import UserDiagnostic from './components/user/UserDiagnostic';
+import Contribution from './components/dashboard/Contribution';
+import Settings from './components/settings/Settings';
+import Marquee from './components/common/Marquee';
+import Login from './components/user/Login';
 
 function App() {
   const [activeTab, setActiveTab] = useState('Dashboard'); // Active tab state

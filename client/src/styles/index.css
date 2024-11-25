@@ -66,4 +66,48 @@
     0% { transform: translateX(100%); }
     100% { transform: translateX(-100%); }
   }
+
+  /* Background blur effect and transparency */
+.bg-opacity-30 {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.backdrop-blur-md {
+  backdrop-filter: blur(10px);
+}
+
+/* Form styling */
+.form-container {
+  width: 24rem; /* 96 Tailwind units */
+  padding: 1.5rem; /* 6 Tailwind units */
+  background: white;
+  border-radius: 0.5rem; /* Rounded corners */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.35); /* Shadow */
+}
+
+.input {
+  border-radius: 9999px; /* Fully rounded */
+  border: 1px solid #c0c0c0;
+  padding: 0.75rem 1rem;
+  outline: none;
+}
+
+.form-btn {
+  padding: 0.75rem 1.25rem;
+  background-color: #008080; /* Teal */
+  color: white;
+  border-radius: 9999px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.form-btn:hover {
+  background-color: #006666; /* Darker teal */
+}
+
+.hidden {
+  display: none; /* Utility class to hide elements */
+}
+
 }
