@@ -1,15 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Dashboard from '../dashboard/Dashboard';
 import Sidebar from '../common/Sidebar';
 
 const Register = () => {
-  const [isModalOpen, setIsModalOpen] = useState(true); // Set to `true` to display the modal by default
+  const [isModalOpen, setIsModalOpen] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    /* Load Google API script dynamically */
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.onload = () => {
+      google.accounts.id.initialize({
+        client_id: '799990694446-i56j72atjb7dj59fp8ulcb39ap8l18uc.apps.googleusercontent.com',
+        callback: handleGoogleLogin,
+      });
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const handleGoogleLogin = (response: any) => {
+    const { credential } = response;
+
+    // Send the credential to your backend for verification
+    axios
+      .post('http://localhost:3000/api/google-login', { token: credential })
+      .then((res) => {
+        console.log('Google login successful:', res.data);
+        setIsModalOpen(false); // Close the modal after successful login
+      })
+      .catch((err) => {
+        console.error('Google login failed:', err);
+        setError('Google login failed. Please try again.');
+      });
+  };
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -96,7 +130,10 @@ const Register = () => {
               </span>
             </p>
             <div className="mt-6 flex flex-col gap-3">
-              <button className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-500 rounded-lg text-sm hover:bg-gray-200 transition duration-200">
+              <button
+                onClick={() => google.accounts.id.prompt()}
+                className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-500 rounded-lg text-sm hover:bg-gray-200 transition duration-200"
+              >
                 <svg
                   className="w-4 h-4"
                   viewBox="0 0 48 48"
