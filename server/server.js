@@ -15,6 +15,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/users", userRoutes);
 app.use("/api/uploads", uploadRoutes);
 
+console.log(getUserProfile); // Should log the function definition
+console.log(authMiddleware); // Should log the middleware function definition
+
+
 // Connect to MongoDB
 const PORT = process.env.PORT || 5000;
 mongoose
