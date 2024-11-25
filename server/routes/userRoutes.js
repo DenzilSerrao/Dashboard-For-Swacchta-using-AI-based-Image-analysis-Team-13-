@@ -8,10 +8,10 @@ const authMiddleware = require("../middleware/authMiddleware"); // Middleware fo
 
 // GET route to fetch the user profile
 // Endpoint: /api/users/profile
-router.get("/profile", authMiddleware, getUserProfile);
+router.get("/api/profile", authMiddleware, getUserProfile);
 
 // PUT route to update the user profile
 // Endpoint: /api/users/profile
-router.put("/profile", authMiddleware, updateUserProfile);
+router.put("/api/profile", authMiddleware, updateUserProfile);
 
 module.exports = router;

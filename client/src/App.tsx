@@ -8,6 +8,7 @@ import Contribution from './components/dashboard/Contribution';
 import Settings from './components/settings/Settings';
 import Marquee from './components/common/Marquee';
 import Login from './components/user/Login';
+import Register from './components/user/Register';
 
 function App() {
   const [activeTab, setActiveTab] = useState('Dashboard'); // Active tab state
@@ -53,7 +54,8 @@ function App() {
       ) : (
         // Center Login component when the user is not logged in
         <div className="flex justify-center items-center min-h-screen bg-gray-100">
-          <Login onLoginSuccess={handleLoginSuccess} />
+          {/* <Login onLoginSuccess={handleLoginSuccess} /> */}
+          <Register onLoginSuccess={handleLoginSuccess} />
         </div>
       )}
     </div>
