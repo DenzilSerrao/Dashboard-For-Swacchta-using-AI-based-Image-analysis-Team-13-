@@ -1,6 +1,16 @@
 import { create } from "zustand";
 import { authApi } from "../services/api";
-import { AuthState } from "../types";
+import {User } from "../types";
+
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
+  checkAuth: () => Promise<void>;
+}
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
