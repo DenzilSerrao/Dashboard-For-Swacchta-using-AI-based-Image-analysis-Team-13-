@@ -13,9 +13,16 @@ export function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login(email, password);
+      // Call the login function from the auth store
+      const userData = await login(email, password);
+
+      // Save user data to localStorage
+      localStorage.setItem('user', JSON.stringify(userData));
+
       toast.success('Login successful!');
-      navigate('/');
+      
+      // Redirect to the dashboard
+      navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Login failed');
     }
@@ -75,7 +82,7 @@ export function LoginForm() {
         <p className="mt-6 text-center text-sm text-gray-600">
           Don't have an account?{' '}
           <button
-            onClick={() => window.location.href = '/register'}
+            onClick={() => navigate('/register')}
             className="text-emerald-600 hover:text-emerald-700 font-medium"
           >
             Register here

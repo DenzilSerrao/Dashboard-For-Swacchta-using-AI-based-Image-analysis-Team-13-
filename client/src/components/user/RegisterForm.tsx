@@ -93,7 +93,7 @@ export function RegisterForm() {
         <p className="mt-6 text-center text-sm text-gray-600">
           Already have an account?{' '}
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={() => navigate('/login')}
             className="text-emerald-600 hover:text-emerald-700 font-medium"
           >
             Sign in

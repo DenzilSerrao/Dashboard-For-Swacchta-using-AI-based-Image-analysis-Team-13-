@@ -12,6 +12,7 @@ import Settings from './components/settings/Settings';
 import Marquee from './components/common/Marquee';
 import { LoginForm } from './components/user/LoginForm';
 import { RegisterForm } from './components/user/RegisterForm';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 function App() {
   const [activeTab, setActiveTab] = useState('Dashboard'); // Active tab state
@@ -57,7 +58,7 @@ function App() {
         </>
       );
     }
-
+    
   // Function to render content based on the active tab
   const renderContent = () => {
     switch (activeTab) {
@@ -79,22 +80,25 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <><div className="min-h-screen bg-gray-100 flex flex-col">
       <Marquee />
-      {isLoggedIn ? (
         <div className="flex flex-1">
           {/* Sidebar and main content */}
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
           <main className="flex-1 p-6">{renderContent()}</main>
         </div>
-      ) : (
-        // Center Login component when the user is not logged in
-        <div className="flex justify-center items-center min-h-screen bg-gray-100">
-          {/* <Login onLoginSuccess={handleLoginSuccess} /> */}
-          <Register onLoginSuccess={handleLoginSuccess} />
-        </div>
-      )}
-    </div>
+    </div><Routes>
+        {/* Define your routes here */}
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/alerts" element={<Alerts />} />
+        <Route path="/profile" element={<UserProfile />} />
+        <Route path="/diagnostic" element={<UserDiagnostic />} />
+        <Route path="/contribution" element={<Contribution />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/register" element={<RegisterForm />} />
+        <Route path="/login" element={<LoginForm />} />
+        {/* <Route path="*" element={<NotFound />} /> Catch-all route for 404 */}
+      </Routes></>
   );
 }
 

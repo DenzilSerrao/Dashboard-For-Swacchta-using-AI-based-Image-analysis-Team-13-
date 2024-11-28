@@ -14,8 +14,3 @@ export interface AlertData {
   description: string;
   status: 'pending' | 'investigating' | 'resolved';
 }
-
-export interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-}
