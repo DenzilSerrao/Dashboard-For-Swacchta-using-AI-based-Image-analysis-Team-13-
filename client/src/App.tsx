@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
+import { Toaster } from 'react-hot-toast';
+import { useAuthStore } from './components/store/authStore';
 import Sidebar from './components/common/Sidebar';
 import Dashboard from './components/dashboard/Dashboard';
 import UserProfile from './components/user/UserProfile';
@@ -7,20 +10,53 @@ import UserDiagnostic from './components/user/UserDiagnostic';
 import Contribution from './components/dashboard/Contribution';
 import Settings from './components/settings/Settings';
 import Marquee from './components/common/Marquee';
-import Login from './components/user/Login';
-import Register from './components/user/Register';
+import { LoginForm } from './components/user/LoginForm';
+import { RegisterForm } from './components/user/RegisterForm';
 
 function App() {
   const [activeTab, setActiveTab] = useState('Dashboard'); // Active tab state
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Track login state
+  // const [isLoggedIn, setIsLoggedIn] = useState(false); // Track login state
 
-  const handleLoginSuccess = () => {
-    setIsLoggedIn(true); // Set user as logged in when login is successful
-  };
+  // const handleLoginSuccess = () => {
+  //   setIsLoggedIn(true); // Set user as logged in when login is successful
+  // };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false); // Log the user out
-  };
+  // const handleLogout = () => {
+  //   setIsLoggedIn(false); // Log the user out
+  // };
+    const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  
+    useEffect(() => {
+      checkAuth();
+    }, [checkAuth]);
+  
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-emerald-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div>
+        </div>
+      );
+    }
+  
+    // Handle routing based on URL path
+    const path = window.location.pathname;
+    if (path === '/register' && !isAuthenticated) {
+      return (
+        <>
+          <Toaster position="top-right" />
+          <RegisterForm />
+        </>
+      );
+    }
+  
+    if (!isAuthenticated) {
+      return (
+        <>
+          <Toaster position="top-right" />
+          <LoginForm />
+        </>
+      );
+    }
 
   // Function to render content based on the active tab
   const renderContent = () => {
