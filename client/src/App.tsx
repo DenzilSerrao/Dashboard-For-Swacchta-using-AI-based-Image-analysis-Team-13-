@@ -98,6 +98,7 @@ function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/register" element={<RegisterForm />} />
         <Route path="/login" element={<LoginForm />} />
+        <Route path="/upload" element={<Upload />} />
         {/* <Route path="*" element={<NotFound />} /> Catch-all route for 404 */}
       </Routes></>
   );

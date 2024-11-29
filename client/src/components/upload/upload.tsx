@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function Uploads() {
+function Upload() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleFileUpload = async (event) => {
@@ -99,4 +99,4 @@ function Uploads() {
   );
 }
 
-export default Uploads;
+export default Upload;

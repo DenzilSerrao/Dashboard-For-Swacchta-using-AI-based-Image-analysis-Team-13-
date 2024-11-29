@@ -5,7 +5,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import jwt
 import os
+from ultralytics import YOLO
 from dotenv import load_dotenv
+from PIL import Image
+import numpy as np
+
 
 # Load environment variables
 load_dotenv()
@@ -16,10 +20,19 @@ CORS(app)
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 app.config['MONGO_URI'] = os.getenv('MONGO_URI', 'mongodb://localhost:27017/mydatabase')
+app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', './uploads')
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
+
+# Load the YOLO model with your trained weights
+model = YOLO('/content/runs/detect/train/weights/best.pt')
 
 # Initialize PyMongo
 mongo = PyMongo(app)
 users_collection = mongo.db.users
+
+# Ensure upload folder exists
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
 
 def generate_token(user_id):
     """Generate JWT token for authentication"""
@@ -132,6 +145,52 @@ def verify_token():
         return jsonify({'error': 'Invalid token'}), 401
     except Exception as e:
         return jsonify({'error': str(e)}), 401
+    
+def allowed_file(filename):
+    """Check if the uploaded file is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+# Preprocess the image if necessary (e.g., resizing, normalization)
+def preprocess_image(image):
+    image = image.resize((640, 640))  # Resize to match the input size expected by the model
+    image_array = np.array(image) / 255.0  # Normalize pixel values (optional)
+    return image_array
+
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file:
+        # Save the uploaded file
+        filename = secure_filename(file.filename)
+        file_path = os.path.join('./uploads', filename)
+        file.save(file_path)
+
+        try:
+            # Open the image with PIL
+            image = Image.open(file_path).convert('RGB')
+
+            # Run inference with the YOLO model
+            results = model.predict(source=file_path, conf=0.25)  # Set confidence threshold as needed
+            detections = results.pandas().xyxy[0].to_dict(orient='records')
+
+            # Prepare response data
+            response = {
+                'message': 'File uploaded and analyzed successfully',
+                'detections': detections
+            }
+
+            return jsonify(response), 201
+
+        except Exception as e:
+            return jsonify({'error': 'Failed to process the file', 'details': str(e)}), 500
+    else:
+        return jsonify({'error': 'Invalid file format'}), 400
 
 if __name__ == '__main__':
     app.run(debug=True)
