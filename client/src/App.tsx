@@ -10,6 +10,7 @@ import UserDiagnostic from './components/user/UserDiagnostic';
 import Contribution from './components/dashboard/Contribution';
 import Settings from './components/settings/Settings';
 import Marquee from './components/common/Marquee';
+import Upload from './components/upload/upload';
 import { LoginForm } from './components/user/LoginForm';
 import { RegisterForm } from './components/user/RegisterForm';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
