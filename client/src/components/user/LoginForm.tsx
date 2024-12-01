@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Mail, Lock } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
@@ -9,24 +9,42 @@ export function LoginForm() {
   const [password, setPassword] = useState('');
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate(); // Initialize navigate
+  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       // Call the login function from the auth store
       const userData = await login(email, password);
-
+      console.log('User Logged in or NO',isAuthenticated)
       // Save user data to localStorage
       localStorage.setItem('user', JSON.stringify(userData));
 
       toast.success('Login successful!');
       
       // Redirect to the dashboard
-      navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Login failed');
     }
   };
+
+  useEffect(() => {
+    const validateToken = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          await checkAuth();
+          toast.success('Welcome back!');
+          navigate('/dashboard'); // Redirect if token is valid
+        } catch (error) {
+          console.error('Token validation failed:', error);
+          localStorage.removeItem('token'); // Clear invalid token
+        }
+      }
+    };
+
+    validateToken();
+  }, [checkAuth, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center p-6">

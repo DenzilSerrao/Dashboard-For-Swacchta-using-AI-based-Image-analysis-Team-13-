@@ -9,6 +9,8 @@ from ultralytics import YOLO
 from dotenv import load_dotenv
 from PIL import Image
 import numpy as np
+import pandas as pd
+from werkzeug.utils import secure_filename
 
 
 # Load environment variables
@@ -20,11 +22,17 @@ CORS(app)
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 app.config['MONGO_URI'] = os.getenv('MONGO_URI', 'mongodb://localhost:27017/mydatabase')
-app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', './uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
+app.config['UPLOAD_FOLDER'] = './upload/input'
+app.config['OUTPUT_FOLDER'] = './upload/output'
+
+
+# model_path = r'/content/runs/train/weights/best.pt'
+# if not os.path.exists(model_path):
+#     raise FileNotFoundError(f"Model file not found at {model_path}")
 
 # Load the YOLO model with your trained weights
-model = YOLO('/content/runs/detect/train/weights/best.pt')
+model = YOLO('best.pt')
 
 # Initialize PyMongo
 mongo = PyMongo(app)
@@ -33,6 +41,10 @@ users_collection = mongo.db.users
 # Ensure upload folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
+
+@app.route('/api/ping', methods=['POST'])
+def ping_check():
+    return jsonify({'status': 'ok', 'message': 'Server is ready'}), 200
 
 def generate_token(user_id):
     """Generate JWT token for authentication"""
@@ -66,9 +78,10 @@ def register():
             'created_at': datetime.utcnow()
         }
         result = users_collection.insert_one(new_user)
-
+        print(result.inserted_id)
         # Generate token
         token = generate_token(result.inserted_id)
+        print(result.inserted_id)
 
         return jsonify({
             'message': 'Registration successful',
@@ -100,6 +113,7 @@ def login():
 
     # Generate token
     token = generate_token(user['_id'])
+    print(token)
 
     return jsonify({
         'message': 'Login successful',
@@ -112,39 +126,58 @@ def login():
         }
     }), 200
 
+# @app.route('/api/verify-token', methods=['GET'])
+# def verify_token():
+#     auth_header = request.headers.get('Authorization')
+    
+#     if not auth_header or not auth_header.startswith('Bearer '):
+#         return jsonify({'error': 'No token provided'}), 401
+
+#     token = auth_header.split(' ')[1]
+
+#     try:
+#         # Decode and verify token
+#         payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+#         print("verify_token: ",payload['user_id'])
+#         user = users_collection.find_one({'_id': payload['user_id']})
+        
+#         if not user:
+#             raise Exception('User not found')
+
+#         return jsonify({
+#             'valid': True,
+#             'user': {
+#                 'id': str(user['_id']),
+#                 'email': user['email'],
+#                 'name': user['name'],
+#                 'role': user['role']
+#             }
+#         }), 200
+
+#     except jwt.ExpiredSignatureError:
+#         return jsonify({'error': 'Token has expired'}), 401
+#     except jwt.InvalidTokenError:
+#         return jsonify({'error': 'Invalid token'}), 401
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 401
+
 @app.route('/api/verify-token', methods=['GET'])
 def verify_token():
     auth_header = request.headers.get('Authorization')
-    
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({'error': 'No token provided'}), 401
 
-    token = auth_header.split(' ')[1]
-
+    token = auth_header.split(' ')[1]  # Extract the token part
     try:
-        # Decode and verify token
-        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        user = users_collection.find_one({'_id': payload['user_id']})
-        
-        if not user:
-            raise Exception('User not found')
-
-        return jsonify({
-            'valid': True,
-            'user': {
-                'id': str(user['_id']),
-                'email': user['email'],
-                'name': user['name'],
-                'role': user['role']
-            }
-        }), 200
-
+        decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        user_id = decoded_token.get('user_id')  # Extract the user ID from the token payload
+        if not user_id:
+            return jsonify({'error': 'Invalid token payload'}), 401
+        return jsonify({'message': 'Token is valid', 'user_id': user_id}), 200
     except jwt.ExpiredSignatureError:
         return jsonify({'error': 'Token has expired'}), 401
     except jwt.InvalidTokenError:
         return jsonify({'error': 'Invalid token'}), 401
-    except Exception as e:
-        return jsonify({'error': str(e)}), 401
     
 def allowed_file(filename):
     """Check if the uploaded file is allowed"""
@@ -159,38 +192,37 @@ def preprocess_image(image):
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-
+        return jsonify({"error": "No file part"}), 400
+    
     file = request.files['file']
     if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
+        return jsonify({"error": "No selected file"}), 400
 
-    if file:
-        # Save the uploaded file
-        filename = secure_filename(file.filename)
-        file_path = os.path.join('./uploads', filename)
-        file.save(file_path)
+    filename = secure_filename(file.filename)
+    print(filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
+    print({"message": f"File {filename} uploaded successfully"}), 200
 
+    if file and allowed_file(file.filename):
         try:
-            # Open the image with PIL
-            image = Image.open(file_path).convert('RGB')
-
-            # Run inference with the YOLO model
-            results = model.predict(source=file_path, conf=0.25)  # Set confidence threshold as needed
-            detections = results.pandas().xyxy[0].to_dict(orient='records')
-
-            # Prepare response data
-            response = {
-                'message': 'File uploaded and analyzed successfully',
-                'detections': detections
-            }
-
-            return jsonify(response), 201
-
+            # Open the uploaded image
+            image = Image.open(file)
+            
+            # Preprocess the image
+            preprocessed_image = preprocess_image(image)
+            
+            # Run the YOLO model
+            results = model.predict(preprocessed_image)
+            
+            # Process the results (extract bounding boxes, classes, etc.)
+            detections = results[0].boxes.data.tolist()  # Example: bounding boxes and confidence scores
+            return jsonify({'detections': detections}), 200
         except Exception as e:
-            return jsonify({'error': 'Failed to process the file', 'details': str(e)}), 500
+            return jsonify({'error': str(e)}), 500
     else:
-        return jsonify({'error': 'Invalid file format'}), 400
+        return jsonify({'error': 'Invalid file type'}), 400
+
 
 if __name__ == '__main__':
     app.run(debug=True)

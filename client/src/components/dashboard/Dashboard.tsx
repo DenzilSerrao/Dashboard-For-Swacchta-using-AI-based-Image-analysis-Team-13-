@@ -1,10 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Upload,
-  BarChart2,
-  FileText,
-  AlertTriangle
-} from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import { BarChart2, FileText, AlertTriangle } from "lucide-react";
 import {
   LineChart,
   XAxis,
@@ -12,61 +7,72 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  Line
-} from 'recharts';
+  Line,
+} from "recharts";
+import { useAuthStore } from "../store/authStore";
+import Upload from "../upload/upload";
 
 const Dashboard: React.FC = () => {
-  const [userName, setUserName] = useState('');
-  const [weeklyScore, setWeeklyScore] = useState<{ score: number; message: string; trendData: { month: string; score: number }[] }>({
+  const [userName, setUserName] = useState("");
+  const [weeklyScore, setWeeklyScore] = useState<{
+    score: number;
+    message: string;
+    trendData: { month: string; score: number }[];
+  }>({
     score: 0,
-    message: '',
+    message: "",
     trendData: [],
   });
   const [alerts, setAlerts] = useState(0);
-  const [uploads, setUploads] = useState<{ id: string; name: string; thumbnailUrl: string; uploadedAt: string }[]>([]);
-  const [uploadStatus, setUploadStatus] = useState<'Success' | 'Failed' | null>(null);
+  const {
+    isAuthenticated,
+    uploadFile,
+    uploadStatus,
+    setUploadStatus,
+  } = useAuthStore();
+  const [uploads, setUploads] = useState([]);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        await uploadFile(file);
+      } catch (error) {
+        console.error("Error uploading file:", error);
+      }
+    }
+  };
 
   useEffect(() => {
+    console.log('Dashboard.tsx: ',isAuthenticated)
     const fetchDashboardData = async () => {
       try {
-        // Mock data fetching functions
-        const welcome = { name: 'John Doe', alerts: 3 }; // Replace with API call
+        // Mock data fetching
+        const welcome = { name: "John Doe", alerts: 3 };
         setUserName(welcome.name);
         setAlerts(welcome.alerts);
 
         const score = {
           score: 85,
-          message: 'Great job this week!',
+          message: "Great job this week!",
           trendData: [
-            { month: 'Jan', score: 75 },
-            { month: 'Feb', score: 80 },
-            { month: 'Mar', score: 85 },
+            { month: "Jan", score: 75 },
+            { month: "Feb", score: 80 },
+            { month: "Mar", score: 85 },
           ],
-        }; // Replace with API call
+        };
         setWeeklyScore(score);
 
-        const uploads = [
-           ]; // Replace with API call
-        setUploads(uploads);
+        const uploadsData = []; // Replace with actual API call
+        setUploads(Array.isArray(uploadsData) ? uploadsData : []); // Ensure uploads is always an array
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error("Error fetching dashboard data:", error);
+        setUploads([]); // Fallback to empty array on error
       }
     };
 
     fetchDashboardData();
   }, []);
-
-  const handleFileUpload = async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      // Simulate file upload
-      setUploadStatus('Success');
-    } catch (error) {
-      setUploadStatus('Failed');
-    }
-  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -75,29 +81,68 @@ const Dashboard: React.FC = () => {
         <div className="p-4 border rounded-lg shadow-lg">
           <h2 className="text-xl font-bold">Welcome, {userName}!</h2>
           <div className="flex items-center justify-between mt-4">
-                  {/* File Upload */}
-        <button
-          className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center shadow-lg hover:bg-green-600 transition-colors duration-300"
-          onClick={(e) => {
-            e.preventDefault();
-            // Simulate file upload dialog
-          }}
-        >
-          <Upload className="mr-2" size={20} />
-          Upload File
-        </button>
-        {uploadStatus === 'Success' && (
-          <div className="mt-2 bg-green-100 border border-green-500 text-green-700 p-2 rounded-lg">
-            <h3 className="font-bold">Upload Successful</h3>
-            <p>Your file has been uploaded.</p>
-          </div>
-        )}
-        {uploadStatus === 'Failed' && (
-          <div className="mt-2 bg-red-100 border border-red-500 text-red-700 p-2 rounded-lg">
-            <h3 className="font-bold">Upload Failed</h3>
-            <p>There was an error uploading your file.</p>
-          </div>
-        )}
+            {/* <button
+              className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center shadow-lg hover:bg-green-600 transition-colors duration-300"
+              onClick={(e) => {
+                e.preventDefault();
+                handleButtonClick();
+              }}
+            >
+              <Upload className="mr-2" size={20} />
+              Upload File
+            </button> */}
+             <label
+              htmlFor="file-upload"
+              className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center shadow-lg hover:bg-green-600 transition-colors duration-300 cursor-pointer"
+            >
+              <span>Upload File</span>
+            </label>
+            <input
+              id="file-upload"
+              type="file"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            {uploadStatus && (
+              <div
+                className={`mt-2 p-2 rounded-lg ${
+                  uploadStatus === "Success"
+                    ? "bg-green-100 border-green-500 text-green-700"
+                    : "bg-red-100 border-red-500 text-red-700"
+                }`}
+              >
+                <h3 className="font-bold">
+                  {uploadStatus === "Success"
+                    ? "Upload Successful"
+                    : "Upload Failed"}
+                </h3>
+                <p>
+                  {uploadStatus === "Success"
+                    ? "Your file has been uploaded."
+                    : "There was an error uploading your file."}
+                </p>
+              </div>
+            )}
+            {/* {uploadStatus && (
+              <div
+                className={`mt-2 p-2 rounded-lg ${
+                  uploadStatus === "Success"
+                    ? "bg-green-100 border-green-500 text-green-700"
+                    : "bg-red-100 border-red-500 text-red-700"
+                }`}
+              >
+                <h3 className="font-bold">
+                  {uploadStatus === "Success"
+                    ? "Upload Successful"
+                    : "Upload Failed"}
+                </h3>
+                <p>
+                  {uploadStatus === "Success"
+                    ? "Your file has been uploaded."
+                    : "There was an error uploading your file."}
+                </p>
+              </div>
+            )} */}
             {alerts > 0 && (
               <div className="text-red-500 flex items-center">
                 <AlertTriangle className="mr-2" size={20} />
@@ -111,10 +156,17 @@ const Dashboard: React.FC = () => {
         <div className="p-4 border rounded-lg shadow-lg">
           <h2 className="text-xl font-bold">Recent Uploads</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
-            {uploads.length > 0 ? (
+            {Array.isArray(uploads) && uploads.length > 0 ? (
               uploads.map((upload) => (
-                <div key={upload.id} className="aspect-square bg-gray-200 rounded-lg">
-                  <img src={upload.thumbnailUrl} alt={upload.name} className="w-full h-full object-cover rounded-lg" />
+                <div
+                  key={upload.id}
+                  className="aspect-square bg-gray-200 rounded-lg"
+                >
+                  <img
+                    src={upload.thumbnailUrl}
+                    alt={upload.name}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
                 </div>
               ))
             ) : (
@@ -129,7 +181,9 @@ const Dashboard: React.FC = () => {
         {/* Weekly Score */}
         <div className="p-4 border rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
           <h2 className="text-xl font-bold">Weekly Score</h2>
-          <div className="text-4xl font-bold text-green-600">{weeklyScore.score}</div>
+          <div className="text-4xl font-bold text-green-600">
+            {weeklyScore.score}
+          </div>
           <p className="text-gray-600">{weeklyScore.message}</p>
           <div className="mt-4">
             <LineChart width={300} height={200} data={weeklyScore.trendData}>
@@ -187,8 +241,6 @@ const Dashboard: React.FC = () => {
           </ul>
         </div>
       </div>
-
-
     </div>
   );
 };

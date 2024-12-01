@@ -13,7 +13,7 @@ import Marquee from './components/common/Marquee';
 import Upload from './components/upload/upload';
 import { LoginForm } from './components/user/LoginForm';
 import { RegisterForm } from './components/user/RegisterForm';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 
 function App() {
   const [activeTab, setActiveTab] = useState('Dashboard'); // Active tab state
@@ -26,11 +26,20 @@ function App() {
   // const handleLogout = () => {
   //   setIsLoggedIn(false); // Log the user out
   // };
-    const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+    const { isAuthenticated, isLoading, ping } = useAuthStore();
   
     useEffect(() => {
-      checkAuth();
-    }, [checkAuth]);
+        const debouncePing = setTimeout(async () => {
+          try {
+            await ping();
+          } catch (error) {
+            console.error('Ping failed:', error);
+          }
+        }, 300); // Wait 300ms before making the call
+      
+        return () => clearTimeout(debouncePing); // Clean up timeout on dependency changes
+      }, [ping, isLoading]);
+  
   
     if (isLoading) {
       return (

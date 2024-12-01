@@ -6,25 +6,68 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  uploadStatus: "Success" | "Failed" | null;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  setUploadStatus: (status: "Success" | "Failed" | null) => void;
+  ping : () => Promise<void>;
+  uploadFile: (file: File) => Promise<any>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  isUploading: false,
+  uploadStatus: null,
+  setUploadStatus: (status) => set({ uploadStatus: status }),
 
+  uploadFile: async (file: File) => {
+    try {
+      const response = await authApi.uploadFile(file); // Call the function from `api.ts`
+      if(response){
+        set({uploadStatus : "Success"})
+      } else {
+        set({uploadStatus : "Failed"})
+      }
+      return response; // Return the response to the caller
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      set({uploadStatus : "Failed"})
+      throw error;
+    }
+  },
+
+  ping: async () => {
+    const retryInterval = 5000; // Retry every 5 seconds
+    const checkServerReady = async () => {
+      try {
+        const response = await authApi.ping();
+        if (response.status === "ok" && response.message === "Server is ready") {
+          set({ isLoading: false });
+          console.log("Server is ready!");
+        } else {
+          console.log("Server not ready, retrying...");
+          setTimeout(checkServerReady, retryInterval); // Retry after interval
+        }
+      } catch (error) {
+        console.error("Ping error, retrying:", error);
+        setTimeout(checkServerReady, retryInterval); // Retry after interval
+      }
+    };
+  
+    checkServerReady();
+  },
+  
   login: async (email: string, password: string) => {
     set({ isLoading: true });
     try {
       const response = await authApi.login({ email, password });
       localStorage.setItem('token', response.token);
-      console.log(response.token)
-      console.log(response.token)
       set({ user: response.user, isAuthenticated: true });
+      console.log(response.user)
     } catch (error) {
       console.error('Login error:', error);
       throw new Error('Login failed. Please check your credentials.');
@@ -53,6 +96,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkAuth: async () => {
     set({ isLoading: true });
+    const retryInterval = 5000;
     try {
       const token = localStorage.getItem('token');
       if (!token) {

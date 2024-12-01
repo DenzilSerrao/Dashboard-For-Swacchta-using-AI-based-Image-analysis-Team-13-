@@ -12,14 +12,19 @@ const api = axios.create({
 });
 
 // Log requests and responses for debugging
-api.interceptors.request.use((config: AxiosRequestConfig) => {
-  console.log('Request made with config:', config);
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token'); // Retrieve token from local storage or session
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+    console.log("token present", token)
+  }
   return config;
 });
 
+
 api.interceptors.response.use(
   (response: AxiosResponse) => {
-    console.log('Response received:', response);
+    console.log('Response received from backend:', response);
     return response;
   },
   (error) => {
@@ -27,7 +32,7 @@ api.interceptors.response.use(
       // Handle specific HTTP status codes
       if (error.response.status === 401) {
         console.error('Unauthorized access - redirecting to login');
-        window.location.href = '/login'; // Optional: Redirect user to login if unauthorized
+        // window.location.href = '/login'; // Optional: Redirect user to login if unauthorized
       }
       console.error(`API Error (Status ${error.response.status}):`, error.response?.data);
     } else {
@@ -47,9 +52,38 @@ export interface RegisterData extends LoginData {
 }
 
 export const authApi = {
+
+  uploadFile : async (file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append("file", file);
+  
+    try {
+      const response = await api.post(`/upload`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      
+      return response.data; // Return server response
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      throw error;
+    }
+  },
+
+  ping: async()=> {
+    try {
+      const response = await api.post('/ping');
+      return response.data
+    } catch (error) {
+      console.error('Server Not Ready:', error);
+      throw error;
+    }
+  },
   login: async (data: LoginData): Promise<{ token: string; user: User }> => {
     try {
       const response = await api.post('/login', data);
+      console.log(response.data)
       return response.data;
     } catch (error) {
       console.error('Login failed:', error);
@@ -65,13 +99,26 @@ export const authApi = {
       throw error;
     }
   },
-  verifyToken: async (): Promise<{ user: User }> => {
+  verifyToken : async (): Promise<{ user: User }> => {
     try {
-      const response = await api.get('/verify-token');
+      // Retrieve the token from local storage or another secure place
+      const token = localStorage.getItem('token');
+      console.log("verify token: ",token)
+      if (!token) {
+        throw new Error('No token found');
+      }
+  
+      // Set the Authorization header
+      const response = await api.get('/verify-token', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+  
       return response.data;
     } catch (error) {
       console.error('Token verification failed:', error);
-      throw error;
+      throw error; // Ensure the error is propagated for handling in the calling code
     }
   },
 };

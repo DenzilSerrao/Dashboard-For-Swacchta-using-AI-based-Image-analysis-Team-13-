@@ -1,102 +1,131 @@
-import { useState } from "react";
+import React, { useRef, useState } from "react";
+import { Upload } from "lucide-react";
+import uploadFile from "../services/api";
+import { useAuthStore } from "../store/authStore";
 
-function Upload() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+const MAX_COUNT = 5;
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+const FileUpload: React.FC = () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [fileLimit, setFileLimit] = useState(false);
+  const { uploadStatus, setUploadStatus } = useAuthStore();
 
-    // Create FormData object to send the file
-    const formData = new FormData();
-    formData.append("image", file);
+  const handleUploadFiles = (files: File[]) => {
+    const uploaded = [...uploadedFiles];
+    let limitExceeded = false;
 
+    files.some((file) => {
+      if (uploaded.findIndex((f) => f.name === file.name) === -1) {
+        uploaded.push(file);
+
+        if (uploaded.length === MAX_COUNT) {
+          setFileLimit(true);
+        }
+
+        if (uploaded.length > MAX_COUNT) {
+          alert(`You can only add a maximum of ${MAX_COUNT} files`);
+          limitExceeded = true;
+          return true;
+        }
+      }
+      return false;
+    });
+
+    if (!limitExceeded) setUploadedFiles(uploaded);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const chosenFiles = Array.prototype.slice.call(e.target.files);
+    handleUploadFiles(chosenFiles);
+  };
+
+  const handleButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleConfirmUpload = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:5000/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const result = await response.json();
-      alert(`Upload successful! Result: ${result.message}`);
+      for (const file of uploadedFiles) {
+        await uploadFile(file);
+      }
+      setUploadStatus("Success");
+      alert("All files uploaded successfully!");
     } catch (error) {
-      console.error("Error uploading file:", error);
-      alert("Upload failed. Please try again.");
+      setUploadStatus("Failed");
+      alert("File upload failed.");
     }
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-green-600 text-white flex flex-col space-y-6 p-4">
-        <h1 className="text-xl font-bold">Dashboard</h1>
-        <ul className="space-y-4">
-          <li>Dashboard</li>
-          <li>User Profile</li>
-          <li>Alerts</li>
-          <li>User Diagnostic</li>
-          <li>Contribution</li>
-          <li>Settings</li>
-        </ul>
-      </aside>
+    <div className="file-upload">
+      {/* Upload button */}
+      <button
+        className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center shadow-lg hover:bg-green-600 transition-colors duration-300"
+        onClick={(e) => {
+          e.preventDefault();
+          handleButtonClick();
+        }}
+      >
+        <Upload className="mr-2" size={20} />
+        Upload Files
+      </button>
 
-      {/* Main Content */}
-      <main className="flex-1 p-6">
-        <header className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Welcome, John Doe!</h1>
-          <button
-            className="bg-green-600 text-white px-4 py-2 rounded"
-            onClick={() => setIsModalOpen(true)}
-          >
-            Upload Image
-          </button>
-        </header>
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        multiple
+        accept="application/pdf, image/png"
+        onChange={handleFileChange}
+        disabled={fileLimit}
+      />
 
-        {/* Recent Uploads Section */}
-        <section>
-          <h2 className="text-xl font-semibold mb-4">Recent Uploads</h2>
-          <div className="grid grid-cols-4 gap-4">
-            {/* Placeholder for uploads */}
-            <div className="h-32 bg-gray-300 rounded"></div>
-            <div className="h-32 bg-gray-300 rounded"></div>
+      {/* List of uploaded files */}
+      <div className="uploaded-files-list mt-4">
+        {uploadedFiles.map((file, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <p>{file.name}</p>
           </div>
-        </section>
+        ))}
+      </div>
 
-        {/* Modal */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white p-6 rounded shadow-lg w-96">
-              <h2 className="text-lg font-bold mb-4">Upload Image</h2>
-              <button
-                className="block w-full bg-green-600 text-white py-2 mb-4 rounded"
-                onClick={() => document.getElementById("fileInput").click()}
-              >
-                Upload from System
-              </button>
-              <button
-                className="block w-full bg-blue-600 text-white py-2 mb-4 rounded"
-                onClick={() => alert("Google Drive integration not implemented yet.")}
-              >
-                Upload from Drive
-              </button>
-              <input
-                id="fileInput"
-                type="file"
-                className="hidden"
-                accept="image/*"
-                onChange={handleFileUpload}
-              />
-              <button
-                className="block w-full bg-gray-300 py-2 rounded"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </main>
+      {/* Upload status feedback */}
+      {uploadStatus && (
+        <div
+          className={`mt-2 p-2 rounded-lg ${
+            uploadStatus === "Success"
+              ? "bg-green-100 border-green-500 text-green-700"
+              : "bg-red-100 border-red-500 text-red-700"
+          }`}
+        >
+          <h3 className="font-bold">
+            {uploadStatus === "Success"
+              ? "Upload Successful"
+              : "Upload Failed"}
+          </h3>
+          <p>
+            {uploadStatus === "Success"
+              ? "Your files have been uploaded."
+              : "There was an error uploading your files."}
+          </p>
+        </div>
+      )}
+
+      {/* Finalize upload */}
+      {uploadedFiles.length > 0 && (
+        <button
+          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-blue-600 transition-colors duration-300"
+          onClick={handleConfirmUpload}
+        >
+          Confirm Upload
+        </button>
+      )}
     </div>
   );
-}
+};
 
-export default Upload;
+export default FileUpload;
