@@ -11,6 +11,7 @@ from PIL import Image
 import numpy as np
 import pandas as pd
 from werkzeug.utils import secure_filename
+from PIL import ImageDraw  # Added ImageDraw import
 
 
 # Load environment variables
@@ -184,9 +185,18 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 # Preprocess the image if necessary (e.g., resizing, normalization)
-def preprocess_image(image):
-    image = image.resize((640, 640))  # Resize to match the input size expected by the model
-    image_array = np.array(image) / 255.0  # Normalize pixel values (optional)
+def preprocess_image(image, output_path=None):
+    # Resize the image to match the input size expected by the model
+    image = image.resize((640, 640))
+    
+    # Normalize pixel values (optional)
+    image_array = np.array(image) / 255.0
+    
+    # If an output path is provided, save the resized image
+    if output_path:
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        image.save(output_path)
+    
     return image_array
 
 @app.route('/api/upload', methods=['POST'])
@@ -199,25 +209,42 @@ def upload_file():
         return jsonify({"error": "No selected file"}), 400
 
     filename = secure_filename(file.filename)
-    print(filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
-    print({"message": f"File {filename} uploaded successfully"}), 200
+    print({"message": f"File {filename} uploaded successfully"})
 
     if file and allowed_file(file.filename):
         try:
             # Open the uploaded image
-            image = Image.open(file)
+            image = Image.open(filepath)
             
-            # Preprocess the image
-            preprocessed_image = preprocess_image(image)
+            # Define the output path for the resized image
+            resized_image_path = os.path.join(app.config['UPLOAD_FOLDER'], 'resized', filename)
+            
+            # Preprocess the image and save it
+            preprocessed_image = preprocess_image(image, output_path=resized_image_path)
             
             # Run the YOLO model
-            results = model.predict(preprocessed_image)
+            # Perform prediction using YOLO model
+            results = model.predict(source=filepath, conf=0.25, project='OUTPUT_FOLDER', show=True, save=True)
             
+            # Save prediction outputs in the specified output folder
+            output_files = [os.path.join('OUTPUT_FOLDER', filename) for filename in os.listdir('OUTPUT_FOLDER')]
+            results[0].show() 
+
             # Process the results (extract bounding boxes, classes, etc.)
             detections = results[0].boxes.data.tolist()  # Example: bounding boxes and confidence scores
-            return jsonify({'detections': detections}), 200
+
+            # Draw the detections on the image and save it to the output folder
+            draw = ImageDraw.Draw(image)
+            for box in detections:
+                x1, y1, x2, y2 = map(int, box[:4])  # Extract coordinates (assuming format is [x1, y1, x2, y2, ...])
+                draw.rectangle([x1, y1, x2, y2], outline="red", width=2)
+            
+            output_filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+            image.save(output_filepath)
+
+            return jsonify({'detections': detections, 'resized_image': resized_image_path, 'output_image': output_filepath}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:
