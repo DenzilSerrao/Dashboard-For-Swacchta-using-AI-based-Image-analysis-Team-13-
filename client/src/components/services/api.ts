@@ -8,7 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 seconds timeout
+  timeout: 20000, // 20 seconds timeout
 });
 
 // Log requests and responses for debugging
@@ -41,6 +41,22 @@ api.interceptors.response.use(
     return Promise.reject(error.response?.data || error);
   }
 );
+
+export const uploadImage = async (imageFile: File): Promise<{ message: string; annotatedImageUrl: string }> => {
+  const formData = new FormData();
+  formData.append("image", imageFile);
+
+  try {
+    const response = await axios.post(`${API_URL}/api/process-image`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    return response.data; // Expecting { message: string, annotatedImageUrl: string }
+  } catch (error) {
+    console.error("Error uploading image:", error);
+    throw new Error("Failed to process the image.");
+  }
+};
 
 export interface LoginData {
   email: string;
@@ -99,6 +115,19 @@ export const authApi = {
       throw error;
     }
   },
+
+  // Process image upload
+  processImage : async (formData: FormData) => {
+    return await axios.post(`${API_URL}/process-image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  // Fetch uploaded files
+  fetchUploads : async () => {
+    return await axios.get(`${API_URL}/uploadFetch`);
+  },
+
   verifyToken : async (): Promise<{ user: User }> => {
     try {
       // Retrieve the token from local storage or another secure place

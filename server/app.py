@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -55,8 +55,8 @@ def generate_token(user_id):
     }, app.config['SECRET_KEY'], algorithm='HS256')
     return token
 
-@app.route('/api/register', methods=['POST'])
-def register():
+# @app.route('/api/register', methods=['POST'])
+# def register():
     data = request.get_json()
 
     # Validate required fields
@@ -97,6 +97,61 @@ def register():
 
     except Exception as e:
         return jsonify({'error': 'Registration failed', 'details': str(e)}), 500
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+
+    # Validate required fields
+    required_fields = ['email', 'password', 'name']
+    if not all(field in data for field in required_fields):
+        return jsonify({
+            'success': False,
+            'message': 'Missing required fields',
+            'error': 'Required fields: email, password, name'
+        }), 400
+
+    try:
+        # Check if user already exists
+        if users_collection.find_one({'email': data['email']}):
+            return jsonify({
+                'success': False,
+                'message': 'Email already registered'
+            }), 409
+
+        # Create new user
+        hashed_password = generate_password_hash(data['password'], method='sha256')
+        new_user = {
+            'email': data['email'],
+            'password': hashed_password,
+            'name': data['name'],
+            'role': 'user',
+            'created_at': datetime.utcnow()
+        }
+        result = users_collection.insert_one(new_user)
+        
+        # Generate token
+        token = generate_token(result.inserted_id)
+
+        return jsonify({
+            'success': True,
+            'message': 'Registration successful',
+            'data': {
+                'user': {
+                    'id': str(result.inserted_id),
+                    'email': new_user['email'],
+                    'name': new_user['name'],
+                    'role': new_user['role']
+                },
+                'token': token
+            }
+        }), 201
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': 'Registration failed',
+            'error': str(e)
+        }), 500
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -199,8 +254,8 @@ def preprocess_image(image, output_path=None):
     
     return image_array
 
-@app.route('/api/upload', methods=['POST'])
-def upload_file():
+# @app.route('/api/upload', methods=['POST'])
+# def upload_file():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     
@@ -226,30 +281,117 @@ def upload_file():
             
             # Run the YOLO model
             # Perform prediction using YOLO model
-            results = model.predict(source=filepath, conf=0.25, project='OUTPUT_FOLDER', show=True, save=True)
-            
+            results = model.predict(
+                source=filepath,        # Path to the input file
+                conf=0.25,              # Confidence threshold for predictions
+                project='OUTPUT_FOLDER',  # Base directory for saving results
+                save=True,              # Save annotated images
+                save_conf=True ,
+                save_txt = True         # Save confidence scores for detections
+            )            
             # Save prediction outputs in the specified output folder
             output_files = [os.path.join('OUTPUT_FOLDER', filename) for filename in os.listdir('OUTPUT_FOLDER')]
-            results[0].show() 
 
             # Process the results (extract bounding boxes, classes, etc.)
             detections = results[0].boxes.data.tolist()  # Example: bounding boxes and confidence scores
 
-            # Draw the detections on the image and save it to the output folder
-            draw = ImageDraw.Draw(image)
-            for box in detections:
-                x1, y1, x2, y2 = map(int, box[:4])  # Extract coordinates (assuming format is [x1, y1, x2, y2, ...])
-                draw.rectangle([x1, y1, x2, y2], outline="red", width=2)
+            # # Draw the detections on the image and save it to the output folder
+            # draw = ImageDraw.Draw(image)
+            # for box in detections:
+            #     x1, y1, x2, y2 = map(int, box[:4])  # Extract coordinates (assuming format is [x1, y1, x2, y2, ...])
+            #     draw.rectangle([x1, y1, x2, y2], outline="red", width=2)
             
             output_filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
             image.save(output_filepath)
 
-            return jsonify({'detections': detections, 'resized_image': resized_image_path, 'output_image': output_filepath}), 200
+            return jsonify({'detections': detections, 'output_image': output_filepath}), 200
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     else:
         return jsonify({'error': 'Invalid file type'}), 400
 
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({
+            'success': False,
+            'message': 'No file part in the request',
+            'error': 'File part missing'
+        }), 400
 
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({
+            'success': False,
+            'message': 'No file selected',
+            'error': 'Empty filename'
+        }), 400
+
+    try:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        if not allowed_file(file.filename):
+            return jsonify({
+                'success': False,
+                'message': 'Invalid file type'
+            }), 400
+
+        # Preprocess and run the YOLO model
+        image = Image.open(filepath)
+        resized_image_path = os.path.join(app.config['UPLOAD_FOLDER'], 'resized', filename)
+        preprocess_image(image, output_path=resized_image_path)
+        results = model.predict(
+                source=filepath,        # Path to the input file
+                conf=0.25,              # Confidence threshold for predictions
+                project='OUTPUT_FOLDER',  # Base directory for saving results
+                save=True,              # Save annotated images
+                save_conf=True ,
+                save_txt = True         # Save confidence scores for detections
+            )  
+        detections = results[0].boxes.data.tolist()  # Extract detection data
+        output_filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+        image.save(output_filepath)
+        return jsonify({
+            'success': True,
+            'message': f'File {filename} processed successfully',
+            'data': {
+                'detections': detections,
+                'output_image': os.path.join(app.config['OUTPUT_FOLDER'], filename)
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': 'File upload and processing failed',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/uploads/<filename>', methods=['GET'])
+def serve_uploaded_file(filename):
+    try:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 404
+
+@app.route('/api/uploadFetch', methods=['GET'])
+def fetch_uploaded_images():
+    try:
+        # Get the list of image files in the upload directory
+        image_files = [
+            {
+                "name": image,
+                "url": f"/api/uploads/{image}"
+            }
+            for image in os.listdir(app.config['UPLOAD_FOLDER'])
+            if image.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))
+        ]
+        
+        return jsonify({"success": True, "images": image_files}), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+    
 if __name__ == '__main__':
     app.run(debug=True)
