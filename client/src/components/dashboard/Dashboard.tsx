@@ -38,6 +38,11 @@ const Dashboard: React.FC = () => {
   // Access user state and actions from the auth store
   const { user, uploadFile, uploadStatus, setUploadStatus } = useAuthStore();
 
+  const handleClearToken = () => {
+    localStorage.removeItem('token'); // Replace 'token' with your actual key
+    alert('Token cleared!');
+    // Optional: Add navigation or state updates here
+  };
   // Handle file upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -56,31 +61,92 @@ const Dashboard: React.FC = () => {
   };
 
   // Fetch user uploads from the server
+  // const fetchUploads = async () => {
+  //   try {
+  //     console.log("Fetching uploads...");
+  
+  //     // Use the fetchUploads function from the API module
+  //     const response = await authApi.fetchUploads();
+  
+  //     if (response.status === 200 && response.data.success) {
+  //       const images = response.data.images;
+  //       if (Array.isArray(images)) {
+  //         setUploads(images); // Safely set uploads from the response
+  //         console.log(`Fetched ${images.length} uploads successfully.`);
+  //       } else {
+  //         throw new Error("Unexpected response format: images is not an array");
+  //       }
+  //     } else {
+  //       throw new Error(response.data.error || "Failed to fetch uploads");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching uploads:", error.message);
+  //     setUploads([]); // Reset uploads in case of failure
+  //   } finally {
+  //     console.log("Fetch uploads operation complete.");
+  //   }
+  // };
+  // const fetchUploads = async () => {
+  //   try {
+  //     const response = await authApi.fetchUploads(); // Using the API method from `api.ts`
+  
+  //     if (response.status === 200 && response.data.success) {
+  //       const folderData = response.data.data;
+  
+  //       // Transform folder data for the frontend if needed
+  //       const uploads = folderData.map((folder: { folder: any; files: any[]; }) => ({
+  //         folderName: folder.folder,
+  //         files: folder.files.map((file: { name: any; path: string; }) => ({
+  //           name: file.name,
+  //           url: file.path.replace(
+  //             "C:\\Users\\DELL\\Desktop\\Programs\\Git\\Dashboard-For-Swacchta-using-AI-based-Image-analysis-Team-13-\\server",
+  //             ""
+  //           ), // Adjust the path for serving in the frontend
+  //         })),
+  //       }));
+  
+  //       setUploads(uploads);
+  //       console.log("Uploads fetched successfully:", uploads);
+  //     } else {
+  //       console.error("Error fetching uploads:", response.data.error);
+  //       setUploads([]);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching uploads:", error.message);
+  //     setUploads([]);
+  //   }
+  // };
   const fetchUploads = async () => {
     try {
-      console.log("Fetching uploads...");
-  
-      // Use the fetchUploads function from the API module
-      const response = await authApi.fetchUploads();
+      const response = await authApi.fetchUploads(); // Assuming this calls the Flask endpoint `/api/fetchUploads`
   
       if (response.status === 200 && response.data.success) {
-        const images = response.data.images;
-        if (Array.isArray(images)) {
-          setUploads(images); // Safely set uploads from the response
-          console.log(`Fetched ${images.length} uploads successfully.`);
-        } else {
-          throw new Error("Unexpected response format: images is not an array");
+        const folderData = response.data.data;
+  
+        // Map the response to the desired structure
+        const uploads = folderData.map((folder: { folder: any; files: any[]; }) => ({
+          folderName: folder.folder,
+          files: folder.files.map((file: { name: any; path: any; }) => ({
+            name: file.name,
+            url: file.path, // URLs served from Flask
+          }
+        )
+      ),
         }
+      ));
+
+        setUploads(uploads);
+        console.log("Uploads fetched successfully:", uploads);
       } else {
-        throw new Error(response.data.error || "Failed to fetch uploads");
+        console.error("Error fetching uploads:", response.data.error);
+        setUploads([]);
       }
     } catch (error) {
       console.error("Error fetching uploads:", error.message);
-      setUploads([]); // Reset uploads in case of failure
-    } finally {
-      console.log("Fetch uploads operation complete.");
+      setUploads([]);
     }
   };
+  
   
 
   // Use effect to fetch uploads on component mount
@@ -102,7 +168,7 @@ const Dashboard: React.FC = () => {
       {/* Welcome Section */}
       <div className="md:col-span-2 space-y-6">
         <div className="p-4 border rounded-lg shadow-lg">
-          <h2 className="text-xl font-bold">Welcome, {"John Doe"}!</h2>
+          <h2 className="text-xl font-bold">Welcome, {"Denzil Serrao"}!</h2>
           <div className="flex items-center justify-between mt-4">
             <label
               htmlFor="file-upload"
@@ -126,29 +192,33 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Recent Uploads */}
-        <div className="p-4 border rounded-lg shadow-lg">
-          <h2 className="text-xl font-bold">Recent Uploads</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
-            {uploads.length > 0 ? (
-              uploads.map((upload) => (
-                <div key={upload.id} className="aspect-square bg-gray-200 rounded-lg">
-                  <a href={upload.fileUrl} target="_blank" rel="noopener noreferrer">
-                    <img
-                      src={upload.thumbnailUrl}
-                      alt={upload.name}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  </a>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-600">No uploads yet.</p>
-            )}
-          </div>
+<div className="p-4 border rounded-lg shadow-lg">
+  <h2 className="text-xl font-bold">Recent Uploads</h2>
+  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
+    {uploads.length > 0 ? (
+      uploads.map((upload) => (
+        <div key={upload.id} className="aspect-square bg-gray-200 rounded-lg relative">
+          <a href={upload.fileUrl} target="_blank" rel="noopener noreferrer">
+            <img
+              src={upload.thumbnailUrl}
+              alt={upload.name || "Uploaded File"}
+              className="w-full h-full object-cover rounded-lg"
+              onError={(e) => (e.target.src = "C:/Users/DELL/Desktop/Programs/Git/Dashboard-For-Swacchta-using-AI-based-Image-analysis-Team-13-/server/OUTPUT_FOLDER/predict/000000_jpg.rf.0e27c88666f15d047eaa42f9d635f5a8.jpg")}
+            />
+          </a>
+          <p className="absolute bottom-2 left-2 bg-black text-white text-xs px-2 py-1 rounded-lg opacity-75">
+            {upload.name || "Unnamed"}
+          </p>
+        </div>
+      ))
+    ) : (
+      <p className="text-gray-600">No uploads yet.</p>
+    )}
+  </div>
+
+
         </div>
       </div>
-
-      {/* Side Panels */}
       <div className="space-y-6">
         {/* Weekly Score */}
         <div className="p-4 border rounded-lg shadow-lg">
@@ -225,6 +295,15 @@ const Dashboard: React.FC = () => {
     </div>
   </div>
 )}
+<div className="p-4">
+      <h2 className="text-xl font-bold">Manage Token</h2>
+      <button
+        onClick={handleClearToken}
+        className="bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-red-600 mt-4"
+      >
+        Logout
+      </button>
+    </div>
 
     </div>
   );

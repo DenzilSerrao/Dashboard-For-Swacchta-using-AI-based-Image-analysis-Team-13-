@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from werkzeug.utils import secure_filename
 from PIL import ImageDraw  # Added ImageDraw import
+import re
 
 
 # Load environment variables
@@ -19,13 +20,14 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
-
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 app.config['MONGO_URI'] = os.getenv('MONGO_URI', 'mongodb://localhost:27017/mydatabase')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
 app.config['UPLOAD_FOLDER'] = './upload/input'
 app.config['OUTPUT_FOLDER'] = './upload/output'
+OUTPUT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OUTPUT_FOLDER")
 
 
 # model_path = r'/content/runs/train/weights/best.pt'
@@ -348,9 +350,12 @@ def upload_file():
                 project='OUTPUT_FOLDER',  # Base directory for saving results
                 save=True,              # Save annotated images
                 save_conf=True ,
-                save_txt = True         # Save confidence scores for detections
+                save_txt = True,
+                show = True,
+                show_labels = True         # Save confidence scores for detections
             )  
         detections = results[0].boxes.data.tolist()  # Extract detection data
+        results[0].show()
         output_filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
         image.save(output_filepath)
         return jsonify({
@@ -368,29 +373,108 @@ def upload_file():
             'error': str(e)
         }), 500
 
-@app.route('/api/uploads/<filename>', methods=['GET'])
-def serve_uploaded_file(filename):
+# @app.route('/api/uploads/<filename>', methods=['GET'])
+# def serve_uploaded_file(filename):
     try:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 404
 
+
 @app.route('/api/uploadFetch', methods=['GET'])
-def fetch_uploaded_images():
-    try:
-        # Get the list of image files in the upload directory
-        image_files = [
-            {
-                "name": image,
-                "url": f"/api/uploads/{image}"
-            }
-            for image in os.listdir(app.config['UPLOAD_FOLDER'])
-            if image.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))
-        ]
+# def fetch_uploaded_images():
+    # try:
+    #     # Get the list of image files in the upload directory
+    #     image_files = [
+    #         {
+    #             "name": image,
+    #             "url": f"/api/uploads/{image}"
+    #         }
+    #         for image in os.listdir(app.config['UPLOAD_FOLDER'])
+    #         if image.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))
+    #     ]
         
-        return jsonify({"success": True, "images": image_files}), 200
+    #     return jsonify({"success": True, "images": image_files}), 200
+    # except Exception as e:
+    #     return jsonify({"success": False, "error": str(e)}), 500
+def fetch_uploaded_images():
+    if request.method == 'OPTIONS':
+        return '', 200  # Respond OK to preflight
+    try:
+        # Only include folders that match "predict<number>" pattern
+        predict_folders = sorted(
+            [folder for folder in os.listdir(OUTPUT_FOLDER) if re.match(r'^predict\d+$', folder)],
+            key=lambda x: int(x.replace("predict", ""))
+        )
+        
+        folder_data = []
+        for folder in predict_folders:
+            folder_path = os.path.join(OUTPUT_FOLDER, folder)
+            if os.path.isdir(folder_path):
+                files = [
+                    {"name": file, "path": f"server/OUTPUT_FOLDER/{folder}/{file}"}
+                    for file in os.listdir(folder_path)
+                    if os.path.isfile(os.path.join(folder_path, file))
+                ]
+                folder_data.append({"folder": folder, "files": files})
+        return jsonify({"success": True, "data": folder_data})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        print(f"Error fetching uploads: {e}")
+        return jsonify({"success": False, "error": "Failed to fetch uploads"}), 500
+        if request.method == 'OPTIONS':
+            return '', 200  # Respond OK to preflight
+        try:
+            predict_folders = sorted(
+                [folder for folder in os.listdir(OUTPUT_FOLDER) if folder.startswith("predict")],
+                key=lambda x: int(x.replace("predict", ""))
+            )
+            folder_data = []
+            for folder in predict_folders:
+                folder_path = os.path.join(OUTPUT_FOLDER, folder)
+                if os.path.isdir(folder_path):
+                    files = [
+                        {"name": file, "path": f"/OUTPUT_FOLDER/{folder}/{file}"}
+                        for file in os.listdir(folder_path)
+                        if os.path.isfile(os.path.join(folder_path, file))
+                    ]
+                    folder_data.append({"folder": folder, "files": files})
+            return jsonify({"success": True, "data": folder_data})
+        except Exception as e:
+            print(f"Error fetching uploads: {e}")
+            return jsonify({"success": False, "error": "Failed to fetch uploads"}), 500
+
+# @app.route('/api/fetchUploads', methods=['GET','OPTIONS'])
+# def fetch_uploads():
+#     if request.method == 'OPTIONS':
+#         return '', 200  # Respond OK to preflight
+#     try:
+#         predict_folders = sorted(
+#             [folder for folder in os.listdir(OUTPUT_FOLDER) if folder.startswith("predict")],
+#             key=lambda x: int(x.replace("predict", ""))
+#         )
+#         folder_data = []
+#         for folder in predict_folders:
+#             folder_path = os.path.join(OUTPUT_FOLDER, folder)
+#             if os.path.isdir(folder_path):
+#                 files = [
+#                     {"name": file, "path": f"/uploads/{folder}/{file}"}
+#                     for file in os.listdir(folder_path)
+#                     if os.path.isfile(os.path.join(folder_path, file))
+#                 ]
+#                 folder_data.append({"folder": folder, "files": files})
+#         return jsonify({"success": True, "data": folder_data})
+#     except Exception as e:
+#         print(f"Error fetching uploads: {e}")
+#         return jsonify({"success": False, "error": "Failed to fetch uploads"}), 500
+
+
+@app.route('/uploads/<folder>/<filename>')
+def serve_file(folder, filename):
+    folder_path = os.path.join(OUTPUT_FOLDER, folder)
+    if os.path.exists(os.path.join(folder_path, filename)):
+        return send_from_directory(folder_path, filename)
+    else:
+        return jsonify({"success": False, "error": "File not found"}), 404
 
     
 if __name__ == '__main__':

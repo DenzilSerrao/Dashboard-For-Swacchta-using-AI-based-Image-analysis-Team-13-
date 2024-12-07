@@ -13,7 +13,8 @@ dist-ssr
 *.local
 venv
 content
-
+OUTPUT_FOLDER
+upload
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
