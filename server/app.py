@@ -26,7 +26,7 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 app.config['MONGO_URI'] = os.getenv('MONGO_URI', 'mongodb://localhost:27017/mydatabase')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
 app.config['UPLOAD_FOLDER'] = './upload/input'
-app.config['OUTPUT_FOLDER'] = './upload/output'
+app.config['OUTPUT_FOLDER'] = './OUTPUT_FOLDER'
 OUTPUT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OUTPUT_FOLDER")
 
 
@@ -35,7 +35,7 @@ OUTPUT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OUTPUT
 #     raise FileNotFoundError(f"Model file not found at {model_path}")
 
 # Load the YOLO model with your trained weights
-model = YOLO('best.pt')
+model = YOLO('best50.pt')
 
 # Initialize PyMongo
 mongo = PyMongo(app)
@@ -350,7 +350,6 @@ def upload_file():
                 project='OUTPUT_FOLDER',  # Base directory for saving results
                 save=True,              # Save annotated images
                 save_conf=True ,
-                save_txt = True,
                 show = True,
                 show_labels = True         # Save confidence scores for detections
             )  
@@ -373,30 +372,7 @@ def upload_file():
             'error': str(e)
         }), 500
 
-# @app.route('/api/uploads/<filename>', methods=['GET'])
-# def serve_uploaded_file(filename):
-    try:
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 404
-
-
 @app.route('/api/uploadFetch', methods=['GET'])
-# def fetch_uploaded_images():
-    # try:
-    #     # Get the list of image files in the upload directory
-    #     image_files = [
-    #         {
-    #             "name": image,
-    #             "url": f"/api/uploads/{image}"
-    #         }
-    #         for image in os.listdir(app.config['UPLOAD_FOLDER'])
-    #         if image.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))
-    #     ]
-        
-    #     return jsonify({"success": True, "images": image_files}), 200
-    # except Exception as e:
-    #     return jsonify({"success": False, "error": str(e)}), 500
 def fetch_uploaded_images():
     if request.method == 'OPTIONS':
         return '', 200  # Respond OK to preflight
@@ -412,7 +388,10 @@ def fetch_uploaded_images():
             folder_path = os.path.join(OUTPUT_FOLDER, folder)
             if os.path.isdir(folder_path):
                 files = [
-                    {"name": file, "path": f"server/OUTPUT_FOLDER/{folder}/{file}"}
+                    {
+                        "name": file,
+                        "url": f"http://localhost:5000/api/OUTPUT_FOLDER/{folder}/{file}"
+                    }
                     for file in os.listdir(folder_path)
                     if os.path.isfile(os.path.join(folder_path, file))
                 ]
@@ -421,27 +400,27 @@ def fetch_uploaded_images():
     except Exception as e:
         print(f"Error fetching uploads: {e}")
         return jsonify({"success": False, "error": "Failed to fetch uploads"}), 500
-        if request.method == 'OPTIONS':
-            return '', 200  # Respond OK to preflight
-        try:
-            predict_folders = sorted(
-                [folder for folder in os.listdir(OUTPUT_FOLDER) if folder.startswith("predict")],
-                key=lambda x: int(x.replace("predict", ""))
-            )
-            folder_data = []
-            for folder in predict_folders:
-                folder_path = os.path.join(OUTPUT_FOLDER, folder)
-                if os.path.isdir(folder_path):
-                    files = [
-                        {"name": file, "path": f"/OUTPUT_FOLDER/{folder}/{file}"}
-                        for file in os.listdir(folder_path)
-                        if os.path.isfile(os.path.join(folder_path, file))
-                    ]
-                    folder_data.append({"folder": folder, "files": files})
-            return jsonify({"success": True, "data": folder_data})
-        except Exception as e:
-            print(f"Error fetching uploads: {e}")
-            return jsonify({"success": False, "error": "Failed to fetch uploads"}), 500
+        # if request.method == 'OPTIONS':
+        #     return '', 200  # Respond OK to preflight
+        # try:
+        #     predict_folders = sorted(
+        #         [folder for folder in os.listdir(OUTPUT_FOLDER) if folder.startswith("predict")],
+        #         key=lambda x: int(x.replace("predict", ""))
+        #     )
+        #     folder_data = []
+        #     for folder in predict_folders:
+        #         folder_path = os.path.join(OUTPUT_FOLDER, folder)
+        #         if os.path.isdir(folder_path):
+        #             files = [
+        #                 {"name": file, "path": f"/OUTPUT_FOLDER/{folder}/{file}"}
+        #                 for file in os.listdir(folder_path)
+        #                 if os.path.isfile(os.path.join(folder_path, file))
+        #             ]
+        #             folder_data.append({"folder": folder, "files": files})
+        #     return jsonify({"success": True, "data": folder_data})
+        # except Exception as e:
+            # print(f"Error fetching uploads: {e}")
+            # return jsonify({"success": False, "error": "Failed to fetch uploads"}), 500
 
 # @app.route('/api/fetchUploads', methods=['GET','OPTIONS'])
 # def fetch_uploads():
@@ -468,14 +447,41 @@ def fetch_uploaded_images():
 #         return jsonify({"success": False, "error": "Failed to fetch uploads"}), 500
 
 
-@app.route('/uploads/<folder>/<filename>')
+@app.route('/api/OUTPUT_FOLDER/<folder>/<filename>', methods=['GET'])
 def serve_file(folder, filename):
-    folder_path = os.path.join(OUTPUT_FOLDER, folder)
-    if os.path.exists(os.path.join(folder_path, filename)):
+    # Construct the full path and validate it
+    folder_path = os.path.abspath(os.path.join(OUTPUT_FOLDER, folder))
+    if not folder_path.startswith(os.path.abspath(OUTPUT_FOLDER)):
+        return jsonify({"success": False, "error": "Access denied"}), 403
+
+    file_path = os.path.join(folder_path, filename)
+    if os.path.exists(file_path):
+        print(f"Serving file from: {file_path}")
         return send_from_directory(folder_path, filename)
     else:
         return jsonify({"success": False, "error": "File not found"}), 404
 
-    
+@app.route('/api/live-mode', methods=['POST'])
+def live_mode():
+    # Add logic to start YOLOv11 in live mode
+    # For example, trigger the camera and load the model
+    try:
+        # Use live camera as source with streaming enabled
+        results = model(source=0, conf=0.75, stream=True, project=results, show=True)  # '0' refers to the default webcam
+            
+        # Process results generator
+        for result in results:
+            boxes = result.boxes  # Boxes object for bounding box outputs
+            masks = result.masks  # Masks object for segmentation masks outputs
+            keypoints = result.keypoints  # Keypoints object for pose outputs
+            probs = result.probs  # Probs object for classification outputs
+            obb = result.obb  # Oriented boxes object for OBB outputs
+            result.show()  # display to screen
+            # result.save(filename="result.jpg")  # save to disk
+
+        return jsonify({"success": True, "message": "Live mode running!"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+  
 if __name__ == '__main__':
     app.run(debug=True)

@@ -8,9 +8,11 @@ import {
   Legend,
   Line,
 } from "recharts";
-import { BarChart2, FileText, AlertTriangle } from "lucide-react";
+import { BarChart2, FileText, AlertTriangle, Upload } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { authApi } from "../services/api";
+import FileUpload from "../upload/upload";
+import LiveMode from "../upload/livemode";
 
 interface Upload {
   id: string;
@@ -60,99 +62,75 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Fetch user uploads from the server
+// Fetch user uploads from the server
+const fetchUploads = async () => {
+  try {
+    const response = await authApi.fetchUploads(); // Using the API method from `api.ts`
+
+    if (response.status === 200 && response.data.success) {
+      const folderData = response.data.data;
+
+      // Transform folder data for the frontend if needed
+      const uploads = folderData.map((folder) => ({
+        folderName: folder.folder,
+        files: folder.files.map((file) => ({
+          name: file.name,
+          // Construct the correct URL for the frontend
+          url: `http://localhost:5000/api/OUTPUT_FOLDER/${folder.folder}/${file.name}`
+        })),
+      }));
+
+      setUploads(uploads);
+      console.log("Uploads fetched successfully:", uploads);
+    } else {
+      console.error("Error fetching uploads:", response.data.error);
+      setUploads([]); // Reset uploads on error
+    }
+  } catch (error) {
+    console.error("Error fetching uploads:", error.message);
+    setUploads([]); // Reset uploads in case of failure
+  }
+};
+
   // const fetchUploads = async () => {
   //   try {
-  //     console.log("Fetching uploads...");
-  
-  //     // Use the fetchUploads function from the API module
-  //     const response = await authApi.fetchUploads();
-  
-  //     if (response.status === 200 && response.data.success) {
-  //       const images = response.data.images;
-  //       if (Array.isArray(images)) {
-  //         setUploads(images); // Safely set uploads from the response
-  //         console.log(`Fetched ${images.length} uploads successfully.`);
-  //       } else {
-  //         throw new Error("Unexpected response format: images is not an array");
-  //       }
-  //     } else {
-  //       throw new Error(response.data.error || "Failed to fetch uploads");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error fetching uploads:", error.message);
-  //     setUploads([]); // Reset uploads in case of failure
-  //   } finally {
-  //     console.log("Fetch uploads operation complete.");
-  //   }
-  // };
-  // const fetchUploads = async () => {
-  //   try {
-  //     const response = await authApi.fetchUploads(); // Using the API method from `api.ts`
+  //     const response = await authApi.fetchUploads(); // Call the API
   
   //     if (response.status === 200 && response.data.success) {
   //       const folderData = response.data.data;
   
-  //       // Transform folder data for the frontend if needed
-  //       const uploads = folderData.map((folder: { folder: any; files: any[]; }) => ({
-  //         folderName: folder.folder,
-  //         files: folder.files.map((file: { name: any; path: string; }) => ({
-  //           name: file.name,
-  //           url: file.path.replace(
-  //             "C:\\Users\\DELL\\Desktop\\Programs\\Git\\Dashboard-For-Swacchta-using-AI-based-Image-analysis-Team-13-\\server",
-  //             ""
-  //           ), // Adjust the path for serving in the frontend
-  //         })),
-  //       }));
+  //       // Check if folderData is an array
+  //       if (Array.isArray(folderData)) {
+  //         const uploads: Upload[] = folderData.flatMap((folder: { folderName: string; files: any[] }) =>
+  //           folder.files.map((file: { name: string; url: string }) => ({
+  //             id: `${folder.folderName}-${file.name}`, // Generate a unique ID
+  //             name: file.name,
+  //             thumbnailUrl: `http://localhost:5000/${file.url}`, // Assuming Flask serves thumbnails
+  //             fileUrl: `http://localhost:5000/${file.url}`, // Full file URL
+  //           }))
+  //         );
   
-  //       setUploads(uploads);
-  //       console.log("Uploads fetched successfully:", uploads);
+  //         setUploads(uploads); // Set the uploads in state
+  //         console.log("Uploads fetched successfully:", uploads);
+  //       } else {
+  //         console.error("Expected folderData to be an array, got:", folderData);
+  //         setUploads([]); // Clear uploads if data is invalid
+  //       }
   //     } else {
-  //       console.error("Error fetching uploads:", response.data.error);
+  //       console.error("Error fetching uploads:", response.data.error || "Unknown error");
   //       setUploads([]);
   //     }
-  //   } catch (error) {
+  //   } catch (error: any) {
   //     console.error("Error fetching uploads:", error.message);
   //     setUploads([]);
   //   }
-  // };
-  const fetchUploads = async () => {
-    try {
-      const response = await authApi.fetchUploads(); // Assuming this calls the Flask endpoint `/api/fetchUploads`
-  
-      if (response.status === 200 && response.data.success) {
-        const folderData = response.data.data;
-  
-        // Map the response to the desired structure
-        const uploads = folderData.map((folder: { folder: any; files: any[]; }) => ({
-          folderName: folder.folder,
-          files: folder.files.map((file: { name: any; path: any; }) => ({
-            name: file.name,
-            url: file.path, // URLs served from Flask
-          }
-        )
-      ),
-        }
-      ));
-
-        setUploads(uploads);
-        console.log("Uploads fetched successfully:", uploads);
-      } else {
-        console.error("Error fetching uploads:", response.data.error);
-        setUploads([]);
-      }
-    } catch (error) {
-      console.error("Error fetching uploads:", error.message);
-      setUploads([]);
-    }
-  };
-  
+  // };  
   
 
-  // Use effect to fetch uploads on component mount
-  useEffect(() => {
-    fetchUploads();
-  }, []);
+    // Fetch uploads when the component mounts
+    useEffect(() => {
+      fetchUploads();
+    }, []);
 
   // Watch for upload status changes and set upload message accordingly
   useEffect(() => {
@@ -169,7 +147,7 @@ const Dashboard: React.FC = () => {
       <div className="md:col-span-2 space-y-6">
         <div className="p-4 border rounded-lg shadow-lg">
           <h2 className="text-xl font-bold">Welcome, {"Denzil Serrao"}!</h2>
-          <div className="flex items-center justify-between mt-4">
+          {/*<div className="flex items-center justify-between mt-4">
             <label
               htmlFor="file-upload"
               className="bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-green-600 cursor-pointer"
@@ -188,36 +166,52 @@ const Dashboard: React.FC = () => {
                 {alerts} New Alerts
               </div>
             )}
+          </div>*/}
+          <div className="flex items-center justify-between mt-4">
+            <FileUpload />
+            <LiveMode />
+            {alerts > 0 && (
+              <div className="text-red-500 flex items-center">
+                <AlertTriangle className="mr-2" size={20} />
+                {alerts} New Alerts
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Recent Uploads */}
+{/* Recent Uploads */}
 <div className="p-4 border rounded-lg shadow-lg">
   <h2 className="text-xl font-bold">Recent Uploads</h2>
-  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
-    {uploads.length > 0 ? (
-      uploads.map((upload) => (
-        <div key={upload.id} className="aspect-square bg-gray-200 rounded-lg relative">
-          <a href={upload.fileUrl} target="_blank" rel="noopener noreferrer">
-            <img
-              src={upload.thumbnailUrl}
-              alt={upload.name || "Uploaded File"}
-              className="w-full h-full object-cover rounded-lg"
-              onError={(e) => (e.target.src = "C:/Users/DELL/Desktop/Programs/Git/Dashboard-For-Swacchta-using-AI-based-Image-analysis-Team-13-/server/OUTPUT_FOLDER/predict/000000_jpg.rf.0e27c88666f15d047eaa42f9d635f5a8.jpg")}
-            />
-          </a>
-          <p className="absolute bottom-2 left-2 bg-black text-white text-xs px-2 py-1 rounded-lg opacity-75">
-            {upload.name || "Unnamed"}
-          </p>
+  {uploads.length > 0 ? (
+    uploads.map((upload) => (
+      <div key={upload.folderName} className="mb-6">
+        <h3 className="text-lg font-semibold mb-2">{upload.folderName}</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {upload.files.map((file) => (
+            <div key={file.name} className="aspect-square bg-gray-200 rounded-lg relative">
+              <a href={file.url} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={file.url}
+                  alt={file.name || "Uploaded File"}
+                  className="w-full h-full object-cover rounded-lg"
+                  onError={(e) => {
+                    // e.currentTarget.src = "fallback_image_path.jpg"; // Replace with your fallback image path
+                  }}
+                />
+              </a>
+              <p className="absolute bottom-2 left-2 bg-black text-white text-xs px-2 py-1 rounded-lg opacity-75">
+                {file.name || "Unnamed"}
+              </p>
+            </div>
+          ))}
         </div>
-      ))
-    ) : (
-      <p className="text-gray-600">No uploads yet.</p>
-    )}
-  </div>
+      </div>
+    ))
+  ) : (
+    <p className="text-gray-600">No uploads yet.</p>
+  )}
+</div>
 
-
-        </div>
       </div>
       <div className="space-y-6">
         {/* Weekly Score */}

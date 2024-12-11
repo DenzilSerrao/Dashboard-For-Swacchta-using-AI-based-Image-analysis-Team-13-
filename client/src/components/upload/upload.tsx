@@ -3,14 +3,47 @@ import { Upload } from "lucide-react";
 import uploadFile from "../services/api";
 import { useAuthStore } from "../store/authStore";
 
-const MAX_COUNT = 5;
+const MAX_COUNT = 7;
+
+interface UploadResponse {
+  message: string;
+  annotatedImageUrl: string; // Adjust to match your backend response
+}
+
+interface Upload {
+  id: string;
+  name: string;
+  thumbnailUrl: string;
+  fileUrl: string;
+}
 
 const FileUpload: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [fileLimit, setFileLimit] = useState(false);
-  const { uploadStatus, setUploadStatus } = useAuthStore();
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
+  const [annotatedImage, setAnnotatedImage] = useState<string | null>(null);
 
+    const { user, uploadFile, uploadStatus, setUploadStatus } = useAuthStore();
+  // Handles single file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        const response = await uploadFile(file); // Line brought back!
+        setUploadMessage(response.message || "Image processed successfully!");
+        setAnnotatedImage(response.annotatedImageUrl); // Assuming the backend returns this URL
+        setShowUploadModal(true);
+      } catch (error) {
+        console.error("Error uploading file:", error);
+        setUploadMessage("Failed to upload or process the image.");
+        setShowUploadModal(true);
+      }
+    }
+  };
+
+  // Handles multiple files upload
   const handleUploadFiles = (files: File[]) => {
     const uploaded = [...uploadedFiles];
     let limitExceeded = false;
@@ -79,8 +112,8 @@ const FileUpload: React.FC = () => {
         ref={fileInputRef}
         style={{ display: "none" }}
         multiple
-        accept="application/pdf, image/png"
-        onChange={handleFileChange}
+        accept="image/png, image/jpg, image/jpeg"
+        onChange={handleFileUpload}
         disabled={fileLimit}
       />
 
@@ -123,6 +156,30 @@ const FileUpload: React.FC = () => {
         >
           Confirm Upload
         </button>
+      )}
+
+      {/* Modal for upload result */}
+      {showUploadModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md">
+            <p className="text-lg font-semibold mb-4">{uploadMessage}</p>
+            {annotatedImage ? (
+              <img
+                src={annotatedImage}
+                alt="Annotated Upload"
+                className="w-full max-h-60 object-contain rounded-lg shadow-md mb-4"
+              />
+            ) : (
+              <p className="text-gray-500 italic mb-4">No image available</p>
+            )}
+            <button
+              onClick={() => setShowUploadModal(false)}
+              className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

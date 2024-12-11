@@ -8,7 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 20000, // 20 seconds timeout
+  // timeout: 20000, // 20 seconds timeout
 });
 
 // Log requests and responses for debugging
@@ -116,6 +116,14 @@ export const authApi = {
     }
   },
 
+  runLiveMode : async () => {
+    try {
+      const response = await api.post(`${API_URL}/live-mode`);
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  },
   // Process image upload
   processImage : async (formData: FormData) => {
     return await axios.post(`${API_URL}/process-image`, formData, {

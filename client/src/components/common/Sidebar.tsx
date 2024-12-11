@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, User, Bell, Activity, Heart, Settings } from 'lucide-react';
 
 interface SidebarProps {
@@ -7,13 +8,15 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+  const navigate = useNavigate(); // Get the navigate function
+
   const menuItems = [
-    { name: 'Dashboard', icon: LayoutDashboard },
-    { name: 'User Profile', icon: User },
-    { name: 'Alerts', icon: Bell },
-    { name: 'User Diagnostic', icon: Activity },
-    { name: 'Contribution', icon: Heart },
-    { name: 'Settings', icon: Settings },
+    { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+    { name: 'User Profile', icon: User, path: '/profile' },
+    { name: 'Alerts', icon: Bell, path: '/alerts' },
+    { name: 'User Diagnostic', icon: Activity, path: '/diagnostic' },
+    { name: 'Contribution', icon: Heart, path: '/contribution' },
+    { name: 'Settings', icon: Settings, path: '/settings' },
   ];
 
   return (
@@ -23,7 +26,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
           {menuItems.map((item) => (
             <li key={item.name} className="mb-2">
               <button
-                onClick={() => setActiveTab(item.name)}
+                onClick={() => {
+                  setActiveTab(item.name);
+                  navigate(item.path); // Navigate to the path
+                }}
                 className={`flex items-center w-full p-2 rounded transition-colors ${
                   activeTab === item.name ? 'bg-green-700' : 'hover:bg-green-500'
                 }`}

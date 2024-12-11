@@ -21,30 +21,12 @@ export function LoginForm() {
       localStorage.setItem('user', JSON.stringify(userData));
 
       toast.success('Login successful!');
-      
+      navigate('/dashboard');
       // Redirect to the dashboard
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Login failed');
     }
   };
-
-  useEffect(() => {
-    const validateToken = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          await checkAuth();
-          toast.success('Welcome back!');
-          navigate('/dashboard'); // Redirect if token is valid
-        } catch (error) {
-          console.error('Token validation failed:', error);
-          localStorage.removeItem('token'); // Clear invalid token
-        }
-      }
-    };
-
-    validateToken();
-  }, [checkAuth, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center p-6">
