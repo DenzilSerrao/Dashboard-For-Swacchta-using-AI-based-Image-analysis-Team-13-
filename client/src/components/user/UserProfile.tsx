@@ -12,11 +12,11 @@ interface UserProfileProps {
 }
 
 const UserProfile: React.FC<UserProfileProps> = ({
-  name,
-  email,
-  phone,
-  address,
-  role,
+  name="Denzil Serrao",
+  email="denzlserrao77@gmail.com",
+  phone="9591958761",
+  address="Maril, Puttur, Karnataka",
+  role="User",
   profilePicture = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
 }) => {
   return (

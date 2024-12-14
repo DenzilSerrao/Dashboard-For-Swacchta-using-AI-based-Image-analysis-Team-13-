@@ -118,7 +118,7 @@ export const authApi = {
 
   runLiveMode : async () => {
     try {
-      const response = await api.post(`${API_URL}/live-mode`);
+      const response = await api.get(`${API_URL}/live-mode`);
       return response;
     } catch (error) {
       throw error;

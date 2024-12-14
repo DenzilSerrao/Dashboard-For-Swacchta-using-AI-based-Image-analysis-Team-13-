@@ -13,6 +13,7 @@ import Settings from './components/settings/Settings';
 import Upload from './components/upload/upload';
 import { LoginForm } from './components/user/LoginForm';
 import { RegisterForm } from './components/user/RegisterForm';
+import LiveCameraOutput from './components/upload/camera';
 
 function App() {
   const [activeTab, setActiveTab] = useState('Dashboard'); // Active tab state
@@ -61,7 +62,8 @@ function App() {
                 <Route path="/register" element={<RegisterForm />} />
                 <Route path="/login" element={<LoginForm />} />
                 <Route path="/upload" element={<Upload />} />
-                {/* <Route path="*" element={<NotFound />} /> */}
+                <Route path="/live-mode" element={<LiveCameraOutput />} />
+                {/* <Route path="*" element={<NotFound />} /> */}LiveCameraOutput
               </Routes>
             </main>
           </div>

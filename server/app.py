@@ -1,3 +1,4 @@
+import cv2
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_pymongo import PyMongo
@@ -461,27 +462,55 @@ def serve_file(folder, filename):
     else:
         return jsonify({"success": False, "error": "File not found"}), 404
 
-@app.route('/api/live-mode', methods=['POST'])
-def live_mode():
-    # Add logic to start YOLOv11 in live mode
-    # For example, trigger the camera and load the model
+# @app.route('/api/live-mode', methods=['GET'])
+# def live_mode():
     try:
         # Use live camera as source with streaming enabled
-        results = model(source=0, conf=0.75, stream=True, project=results, show=True)  # '0' refers to the default webcam
-            
-        # Process results generator
-        for result in results:
-            boxes = result.boxes  # Boxes object for bounding box outputs
-            masks = result.masks  # Masks object for segmentation masks outputs
-            keypoints = result.keypoints  # Keypoints object for pose outputs
-            probs = result.probs  # Probs object for classification outputs
-            obb = result.obb  # Oriented boxes object for OBB outputs
-            result.show()  # display to screen
-            # result.save(filename="result.jpg")  # save to disk
+        results = model(source=0, conf=0.75, stream=True)  # '0' refers to the default webcam
 
+        # Process results continuously
+        for result in results:
+            # Convert the result image to an OpenCV-friendly format
+            frame = result.orig_img  # Original image from camera
+            annotated_frame = result.plot()  # Annotated frame with bounding boxes, etc.
+
+            # Check if OpenCV GUI is supported
+            if cv2.getWindowProperty("Live Detection", cv2.WND_PROP_VISIBLE) >= 0:
+                cv2.imshow("Live Detection", annotated_frame)
+
+            # Break the loop if 'q' is pressed
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        # Release resources and close windows
+        cv2.destroyAllWindows()
         return jsonify({"success": True, "message": "Live mode running!"}), 200
+
+    except cv2.error as cv_err:
+        return jsonify({
+            "success": False,
+            "error": "OpenCV error: Ensure GUI support for OpenCV is installed. "
+                     "If running headless, use Flask streaming instead.",
+            "details": str(cv_err)
+        }), 500
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-  
+
+from flask import Response, stream_with_context
+
+@app.route('/api/live-mode', methods=['GET'])
+def video_feed():
+    def generate_frames():
+        results = model(source=0, show=True, conf=0.75)
+        for result in results:
+            frame = result.plot()  # Get annotated frame
+            _, buffer = cv2.imencode('.jpg', frame)  # Encode to JPEG
+            frame_bytes = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+    return Response(stream_with_context(generate_frames()),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
 if __name__ == '__main__':
     app.run(debug=True)

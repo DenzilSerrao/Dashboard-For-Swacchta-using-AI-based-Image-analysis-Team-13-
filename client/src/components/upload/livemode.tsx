@@ -1,13 +1,18 @@
 import React from "react";
 import { Camera } from "lucide-react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate for navigation
 import { authApi } from "../services/api";
 
 const LiveMode: React.FC = () => {
+  const navigate = useNavigate(); // Initialize the useNavigate hook
+
   const handleLiveMode = async () => {
     try {
-      const response = await authApi.runLiveMode(); // Assuming `runLiveMode` is the API method
+        
+      const response = await authApi.runLiveMode(); // Sending a GET request to the /live-mode endpoint
       if (response.status === 200 && response.data.success) {
-        alert("Live mode started successfully! Check the live interface.");
+        alert("Live mode started successfully!");
+         // Navigate to /live-mode URL upon success
       } else {
         console.error("Error starting live mode:", response.data.error);
         alert("Failed to start live mode. Please try again.");

@@ -13,6 +13,7 @@ import { useAuthStore } from "../store/authStore";
 import { authApi } from "../services/api";
 import FileUpload from "../upload/upload";
 import LiveMode from "../upload/livemode";
+import { useNavigate } from "react-router-dom";
 
 interface Upload {
   id: string;
@@ -22,6 +23,7 @@ interface Upload {
 }
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate(); // Initialize the useNavigate hook
   const [weeklyScore, setWeeklyScore] = useState({
     score: 85,
     message: "Great job this week!",
@@ -61,7 +63,10 @@ const Dashboard: React.FC = () => {
       }
     }
   };
-
+    // Navigate to /live-mode when button is clicked
+    const handleGoToLiveMode = () => {
+      navigate("/live-mode");
+    };
 // Fetch user uploads from the server
 const fetchUploads = async () => {
   try {
@@ -90,6 +95,7 @@ const fetchUploads = async () => {
     console.error("Error fetching uploads:", error.message);
     setUploads([]); // Reset uploads in case of failure
   }
+  
 };
 
   // const fetchUploads = async () => {
